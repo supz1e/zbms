@@ -1,0 +1,62 @@
+# Experiment 1: Protein Preparation and Protein Modelling Using Modeller
+/usr/local/gromacs/bin/gmx pdb2gmx -f protein.pdb -o protein.gro -water spce
+python modeller_script.py
+
+# Experiment 2: Ligand Preparation and Generation of Ligand Force Field
+/usr/local/gromacs/bin/gmx editconf -f ligand.pdb -o ligand.gro
+# Use ATB server for topology file generation (manual step)
+
+# Experiment 3: Preparing Other Biomolecules for Molecular Dynamics Simulation
+/usr/local/gromacs/bin/gmx pdb2gmx -f 3u2n.pdb -o dna.gro -water spce -inter
+
+# Experiment 4: Preparation of the Protein-Ligand Complex and Related Processes (vacuum.mdp and md.mdp is same as em.mdp emstep=0.002 )
+/usr/local/gromacs/bin/gmx editconf -f complex.gro -o newbox.gro -bt cubic -d 2.0 -c
+gmx grompp -f vacuum.mdp -c newbox.gro -p topol.top -o protein-em-vacuum.tpr
+gmx mdrun -v deffnm protein-em-vacuum
+gmx mdrun -v deffnm protein-em-vacuum -c protein-em-vacuum.pdb
+/usr/local/gromacs/bin/gmx solvate -cp protein.gro -cs spc216.gro -p topol.top -o solv.gro
+gmx grompp -f em.mdp -c solv.gro -p topol.top -o ions.tpr
+/usr/local/gromacs/bin/gmx genion -s ions.tpr -o solv_ions.gro -p topol.top -conc 0.15 -neutral -pname NA -nname CL
+gmx grompp -f em.mdp -c solv_ions.gro -p topol.top -o em.tpr
+gmx mdrun -v -deffnm em
+
+
+# Experiment 5: System Equilibration Using NVT and NPT Ensembles and Performing MD Run(npt.mdp nsteps 50000 to 5000)
+gmx genrestr -f ligand.gro -o posres_ligand.itp -fc 1000 1000 1000
+gmx make_ndx -f em.gro -o index.ndx 
+/usr/local/gromacs/bin/gmx grompp -f nvt.mdp -c em.gro -p topol.top -n index.ndx -o nvt.tpr -r em.gro
+/usr/local/gromacs/bin/gmx mdrun -deffnm nvt -v
+/usr/local/gromacs/bin/gmx grompp -f npt.mdp -c nvt.gro -t nvt.cpt -p topol.top -n index.ndx -o npt-1000.tpr
+/usr/local/gromacs/bin/gmx mdrun -deffnm npt-1000 -v
+# Change 1000 to 100 then 10 then 1 to 0
+gmx grompp -f md.mdp -c npt.gro -r em.gro -t npt.cpt -p topol.top -n index.ndx -o md_out.tpr
+gmx mdrun -deffnm md_out -v
+
+# Experiment 6: RMSD, RMSF, RG, SASA, and Secondary Structure Analysis
+/usr/local/gromacs/bin/gmx rms -s protein.tpr -f protein.xtc -n index.ndx -o RMSD.xvg (BACKBONE)
+/usr/local/gromacs/bin/gmx rmsf -s protein.tpr -f protein.xtc -n index.ndx -o RMSF.xvg -res (C alpha PROTEIN)
+/usr/local/gromacs/bin/gmx gyrate -s protein.tpr -f protein.xtc -n index.ndx -o gyrate.xvg (COMPLETE PROTEIN)
+/usr/local/gromacs/bin/gmx sasa -s protein.tpr -f protein.xtc -o sasa.xvg -oa atomic-sas.xvg (COMPLETE PROTEIN)
+gmx do_dssp -f protein.xtc -s protein.tpr -o ss.xpm -sc ss-rmds.xvg -dt10 
+gmx xpm2ps -f ss.xpm -o ss.eps
+
+
+# Experiment 7: Hydrogen Bond and Protein Pocket Analysis
+/usr/local/gromacs/bin/gmx hbond -s protein.tpr -f protein.xtc -num hbond.xvg
+# Use CAVER tool (manual step with PyMOL or VMD plugins)
+
+# Experiment 8: MMPBSA Analysis
+/usr/local/gromacs/bin/gmx g_mmpbsa -f protein.xtc -s protein.tpr -n index.ndx -i pbsa.mdp -pbsa -decomp
+
+# Experiment 9: Principal Component Analysis (PCA)
+/usr/local/gromacs/bin/gmx covar -f md_protein.xtc -s md_protein.tpr -o eigenvec.trr
+/usr/local/gromacs/bin/gmx anaeig -v eigenvec.trr -f md_protein.xtc -eig eigenval.xvg -s md_protein.tpr -rst 1-last 1-nframes 100-extr ev1.pdb 
+#same as above change 1 to 2
+/usr/local/gromacs/bin/gmx anaeig -v eigenvec.trr -f md_protein.xtc -eig eigenval.xvg -s md_protein.pdb -rst 1-last 2-2d 2dproj -ev_1_2.xvg(BACKBONE)
+
+# Experiment 11: Protein-Ligand Simulation Using GROMACS
+/usr/local/gromacs/bin/gmx mdrun -s md.tpr -deffnm md -v
+
+# Experiment 13: Result Analysis Using GROMACS
+/usr/local/gromacs/bin/gmx trjconv -s md.tpr -f md.xtc -o md_analysis.pdb
+/usr/local/gromacs/bin/gmx rms -s md.tpr -f md.xtc -o rmsd.xvg
