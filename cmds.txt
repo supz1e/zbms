@@ -19,7 +19,15 @@ gmx grompp -f em.mdp -c solv.gro -p topol.top -o ions.tpr
 /usr/local/gromacs/bin/gmx genion -s ions.tpr -o solv_ions.gro -p topol.top -conc 0.15 -neutral -pname NA -nname CL
 gmx grompp -f em.mdp -c solv_ions.gro -p topol.top -o em.tpr
 gmx mdrun -v -deffnm em
-
+#cmds from manual
+gmx grompp -f vacuum.mdp -c newbox.gro -p topol.top -o protein-EM-vacuum.tpr
+gmx mdrun -v -deffnm protein-EM-vacuum -c protein-EM-vacuum.pdb
+gmx mdrun -v -deffnm protein-EM-vacuum
+gmx solvate -cp protein-EM-vacuum.gro -cs spc216.gro -p topol.top -o solv.gro
+gmx grompp -f em.mdp -c solv.gro -p topol.top -o ions.tpr
+gmx genion -s ions.tpr -o solv_ions.gro -p topol.top -conc 0.15 -neutral -pname NA -nname CL
+gmx grompp -f em.mdp -c solv_ions.gro -p topol.top -o em.tpr
+gmx mdrun -v -deffnm em
 
 # Experiment 5: System Equilibration Using NVT and NPT Ensembles and Performing MD Run(npt.mdp nsteps 50000 to 5000)
 gmx genrestr -f ligand.gro -o posres_ligand.itp -fc 1000 1000 1000
@@ -29,6 +37,23 @@ gmx make_ndx -f em.gro -o index.ndx
 /usr/local/gromacs/bin/gmx grompp -f npt.mdp -c nvt.gro -t nvt.cpt -p topol.top -n index.ndx -o npt-1000.tpr
 /usr/local/gromacs/bin/gmx mdrun -deffnm npt-1000 -v
 # Change 1000 to 100 then 10 then 1 to 0
+gmx grompp -f md.mdp -c npt.gro -r em.gro -t npt.cpt -p topol.top -n index.ndx -o md_out.tpr
+gmx mdrun -deffnm md_out -v
+#cmds from manual
+gmx genrestr -f ligand.gro -o posre_ligand.itp -fc 1000 1000 1000
+gmx make_ndx -f em.gro -o index.ndx
+gmx grompp -f nvt.mdp -c em.gro -p topol.top -n index.ndx -o nvt.tpr -r em.gro
+gmx mdrun -deffnm nvt -v
+gmx grompp -f npt.mdp -c nvt.gro -t nvt.cpt -p topol.top -n index.ndx -o npt-1000.tpr
+gmx mdrun -deffnm npt-1000 -v
+gmx grompp -f npt.mdp -c npt-1000.gro -t npt-1000.cpt -p topol.top
+gmx mdrun -deffnm npt-100 -v
+gmx grompp -f npt.mdp -c npt-100.gro -t npt-100.cpt -p topol.top -n index.ndx -o npt-10.tpr
+gmx mdrun -deffnm npt-10 -v
+gmx grompp -f npt.mdp -c npt-10.gro -t npt-10.cpt -p topol.top -n index.ndx -o npt-1.tpr
+gmx mdrun -deffnm npt-1 -v
+gmx grompp -f npt.mdp -c npt-1.gro -t npt-1.cpt -p topol.top -n index.ndx -o npt.tpr
+gmx mdrun -deffnm npt -v
 gmx grompp -f md.mdp -c npt.gro -r em.gro -t npt.cpt -p topol.top -n index.ndx -o md_out.tpr
 gmx mdrun -deffnm md_out -v
 
@@ -47,6 +72,7 @@ gmx xpm2ps -f ss.xpm -o ss.eps
 
 # Experiment 8: MMPBSA Analysis
 /usr/local/gromacs/bin/gmx g_mmpbsa -f protein.xtc -s protein.tpr -n index.ndx -i pbsa.mdp -pbsa -decomp
+
 
 # Experiment 9: Principal Component Analysis (PCA)
 /usr/local/gromacs/bin/gmx covar -f md_protein.xtc -s md_protein.tpr -o eigenvec.trr
